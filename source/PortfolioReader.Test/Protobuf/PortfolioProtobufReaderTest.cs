@@ -8,9 +8,10 @@ namespace Toqe.PortfolioReader.Test.Protobuf
         [Fact]
         public void TestReadClient()
         {
-            var basePath = this.GetSourceBasePath();
+            var basePath = new TestHelper().GetTestDataBasePath();
             var reader = new PortfolioProtobufReader();
-            var client = reader.ReadClient(Path.Combine(basePath.FullName, "PortfolioReader.Test", "TestData", "test.portfolio"));
+            var filename = Path.Combine(basePath.FullName, "test.portfolio");
+            var client = reader.ReadClient(filename);
 
             Assert.Equal("EUR", client.baseCurrency);
 
@@ -398,23 +399,6 @@ namespace Toqe.PortfolioReader.Test.Protobuf
                 Assert.Equal(depot2, transactionWrapper.OtherPortfolio);
                 Assert.Equal(allianz, transactionWrapper.Security);
             }
-        }
-
-        private DirectoryInfo GetSourceBasePath()
-        {
-            var basePath = new DirectoryInfo(".");
-
-            while (basePath.Name != "source")
-            {
-                basePath = basePath.Parent;
-
-                if (basePath == null)
-                {
-                    throw new InvalidOperationException("Base path not found");
-                }
-            }
-
-            return basePath;
         }
     }
 }
