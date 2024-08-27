@@ -11,6 +11,11 @@ namespace Toqe.PortfolioReader.Business.Protobuf
             return new DateTime(1970, 1, 1).AddDays(value);
         }
 
+        public double ConvertPriceClose(long value)
+        {
+            return this.ConvertDouble(value, 8);
+        }
+
         public double ConvertTransactionShares(long value)
         {
             return this.ConvertDouble(value, 8);

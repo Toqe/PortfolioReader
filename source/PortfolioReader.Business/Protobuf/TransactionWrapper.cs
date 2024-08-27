@@ -37,6 +37,50 @@ namespace Toqe.PortfolioReader.Business.Protobuf
 
         public PTransaction Transaction { get; set; }
 
+        public double GetSharesEffectOn(string portfolio)
+        {
+            if (this.Shares == 0)
+            {
+                return 0;
+            }
+
+            var sign = 0;
+
+            if (this.Portfolio?.Uuid == portfolio)
+            {
+                sign = 1;
+            }
+
+            if (this.OtherPortfolio?.Uuid == portfolio)
+            {
+                sign = -1;
+            }
+
+            if (sign == 0)
+            {
+                return 0;
+            }
+
+            switch (this.Transaction.type)
+            {
+                case PTransaction.Type.Purchase:
+                case PTransaction.Type.InboundDelivery:
+                    break;
+
+                case PTransaction.Type.Sale:
+                case PTransaction.Type.OutboundDelivery:
+                case PTransaction.Type.SecurityTransfer:
+                    sign *= -1;
+                    break;
+
+                default:
+                    sign = 0;
+                    break;
+            }
+
+            return sign * this.Shares;
+        }
+
         private static T Find<T>(
             string id,
             Func<string, T> byIdAccessor)
