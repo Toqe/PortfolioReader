@@ -352,7 +352,7 @@ namespace Toqe.PortfolioReader.Test.Protobuf
             }
 
             {
-                var transaction = client.Transactions.FirstOrDefault(x => x.Date == new DateTime(2024, 9, 1));
+                var transaction = client.Transactions.FirstOrDefault(x => x.Date == new DateTime(2024, 8, 10));
                 Assert.NotNull(transaction);
                 Assert.Equal(PTransaction.Type.InboundDelivery, transaction.type);
                 Assert.Empty(transaction.Account);
@@ -380,7 +380,7 @@ namespace Toqe.PortfolioReader.Test.Protobuf
             }
 
             {
-                var transaction = client.Transactions.FirstOrDefault(x => x.Date == new DateTime(2024, 9, 2));
+                var transaction = client.Transactions.FirstOrDefault(x => x.Date == new DateTime(2024, 8, 11));
                 Assert.NotNull(transaction);
                 Assert.Equal(PTransaction.Type.SecurityTransfer, transaction.type);
                 Assert.Empty(transaction.Account);
