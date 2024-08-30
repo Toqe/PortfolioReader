@@ -39,7 +39,7 @@ namespace Toqe.PortfolioReader.Business.Protobuf
 
         public double GetSharesEffectOn(string portfolio)
         {
-            if (this.Shares == 0)
+            if (PortfolioProtobufDataConverter.Instance.IsSharesZero(this.Shares))
             {
                 return 0;
             }

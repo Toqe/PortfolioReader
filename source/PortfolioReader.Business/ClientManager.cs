@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using Toqe.PortfolioReader.Business.Models;
 using Toqe.PortfolioReader.Business.Protobuf;
@@ -44,7 +45,7 @@ namespace Toqe.PortfolioReader.Business
             {
                 foreach (var securityValue in portfolio.SecurityValues.ToList())
                 {
-                    if (securityValue.Shares == 0)
+                    if (PortfolioProtobufDataConverter.Instance.IsSharesZero(securityValue.Shares))
                     {
                         portfolio.SecurityValues.Remove(securityValue);
                         continue;

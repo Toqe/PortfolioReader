@@ -26,6 +26,11 @@ namespace Toqe.PortfolioReader.Business.Protobuf
             return this.ConvertDouble(value, 2);
         }
 
+        public bool IsSharesZero(double shares)
+        {
+            return Math.Abs(shares) < 0.00000001;
+        }
+
         private double ConvertDouble(long value, int pow)
         {
             return value / Math.Pow(10, pow);
