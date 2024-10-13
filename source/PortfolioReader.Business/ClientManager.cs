@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using Toqe.PortfolioReader.Business.Models;
 using Toqe.PortfolioReader.Business.Protobuf;
@@ -43,25 +42,33 @@ namespace Toqe.PortfolioReader.Business
 
             foreach (var portfolio in result.Portfolios)
             {
-                foreach (var securityValue in portfolio.SecurityValues.ToList())
-                {
-                    if (PortfolioProtobufDataConverter.Instance.IsSharesZero(securityValue.Shares))
-                    {
-                        portfolio.SecurityValues.Remove(securityValue);
-                        continue;
-                    }
-
-                    var latestPrice = securityValue.Security.Prices.OrderByDescending(x => x.Date).FirstOrDefault();
-
-                    if (latestPrice != null)
-                    {
-                        securityValue.Price = PortfolioProtobufDataConverter.Instance.ConvertPriceClose(latestPrice.Close);
-                        securityValue.MarketValue = securityValue.Shares * securityValue.Price;
-                    }
-                }
-
+                this.UpdatePriceAndMarketValueAndRemoveIfZero(portfolio.SecurityValues);
                 portfolio.SecurityValues = portfolio.SecurityValues.OrderBy(x => x.Security.Name).ToList();
             }
+
+            return result;
+        }
+
+        public List<SecurityValueModel> GetCurrentSecuritiesValues(
+            PClient client)
+        {
+            var securityMap = new Dictionary<string, SecurityValueModel>();
+
+            foreach (var transaction in client.Transactions)
+            {
+                var wrapper = new TransactionWrapper(transaction, client);
+
+                if (wrapper.Security != null)
+                {
+                    this.UpdateSecurityValue(wrapper, securityMap);
+                }
+            }
+
+            var result = securityMap.Values
+                .OrderBy(x => x.Security.Name)
+                .ToList();
+
+            this.UpdatePriceAndMarketValueAndRemoveIfZero(result);
 
             return result;
         }
@@ -90,6 +97,44 @@ namespace Toqe.PortfolioReader.Business
             }
 
             securityValue.Shares += wrapper.GetSharesEffectOn(portfolio.Uuid);
+        }
+
+        private void UpdateSecurityValue(
+            TransactionWrapper wrapper,
+            Dictionary<string, SecurityValueModel> securityMap)
+        {
+            if (!securityMap.TryGetValue(wrapper.Transaction.Security, out var securityValue))
+            {
+                securityValue = new SecurityValueModel
+                {
+                    Security = wrapper.Security,
+                    Shares = 0,
+                };
+
+                securityMap.Add(wrapper.Transaction.Security, securityValue);
+            }
+
+            securityValue.Shares += wrapper.GetSharesEffect();
+        }
+
+        private void UpdatePriceAndMarketValueAndRemoveIfZero(List<SecurityValueModel> securityValues)
+        {
+            foreach (var securityValue in securityValues.ToList())
+            {
+                if (PortfolioProtobufDataConverter.Instance.IsSharesZero(securityValue.Shares))
+                {
+                    securityValues.Remove(securityValue);
+                    continue;
+                }
+
+                var latestPrice = securityValue.Security.Prices.OrderByDescending(x => x.Date).FirstOrDefault();
+
+                if (latestPrice != null)
+                {
+                    securityValue.Price = PortfolioProtobufDataConverter.Instance.ConvertPriceClose(latestPrice.Close);
+                    securityValue.MarketValue = securityValue.Shares * securityValue.Price;
+                }
+            }
         }
     }
 }

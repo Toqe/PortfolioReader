@@ -81,6 +81,28 @@ namespace Toqe.PortfolioReader.Business.Protobuf
             return sign * this.Shares;
         }
 
+        public double GetSharesEffect()
+        {
+            if (PortfolioProtobufDataConverter.Instance.IsSharesZero(this.Shares))
+            {
+                return 0;
+            }
+
+            switch (this.Transaction.type)
+            {
+                case PTransaction.Type.Purchase:
+                case PTransaction.Type.InboundDelivery:
+                    return this.Shares;
+
+                case PTransaction.Type.Sale:
+                case PTransaction.Type.OutboundDelivery:
+                    return -1 * this.Shares;
+
+                default:
+                    return 0;
+            }
+        }
+
         private static T Find<T>(
             string id,
             Func<string, T> byIdAccessor)
