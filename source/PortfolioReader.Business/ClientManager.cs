@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using Toqe.PortfolioReader.Business.Models;
 using Toqe.PortfolioReader.Business.Protobuf;
@@ -8,7 +9,8 @@ namespace Toqe.PortfolioReader.Business
     public class ClientManager
     {
         public PortfoliosValuesModel GetCurrentPortfoliosValues(
-            PClient client)
+            PClient client,
+            Func<(string currency, DateTime date), decimal> exchangeRateProvider)
         {
             var portfolioMap = new Dictionary<string, PortfolioValuesModel>();
 
@@ -42,7 +44,7 @@ namespace Toqe.PortfolioReader.Business
 
             foreach (var portfolio in result.Portfolios)
             {
-                this.UpdatePriceAndMarketValueAndRemoveIfZero(portfolio.SecurityValues);
+                this.UpdatePriceAndMarketValueAndRemoveIfZero(client, portfolio.SecurityValues, DateTime.Today, exchangeRateProvider);
                 portfolio.SecurityValues = portfolio.SecurityValues.OrderBy(x => x.Security.Name).ToList();
             }
 
@@ -50,11 +52,21 @@ namespace Toqe.PortfolioReader.Business
         }
 
         public List<SecurityValueModel> GetCurrentSecuritiesValues(
-            PClient client)
+            PClient client,
+            Func<(string currency, DateTime date), decimal> exchangeRateProvider)
+        {
+            return this.GetCurrentSecuritiesValues(client, client.Transactions, DateTime.Today, exchangeRateProvider);
+        }
+
+        public List<SecurityValueModel> GetCurrentSecuritiesValues(
+            PClient client,
+            IEnumerable<PTransaction> transactions,
+            DateTime priceDate,
+            Func<(string currency, DateTime date), decimal> exchangeRateProvider)
         {
             var securityMap = new Dictionary<string, SecurityValueModel>();
 
-            foreach (var transaction in client.Transactions)
+            foreach (var transaction in transactions)
             {
                 var wrapper = new TransactionWrapper(transaction, client);
 
@@ -68,7 +80,7 @@ namespace Toqe.PortfolioReader.Business
                 .OrderBy(x => x.Security.Name)
                 .ToList();
 
-            this.UpdatePriceAndMarketValueAndRemoveIfZero(result);
+            this.UpdatePriceAndMarketValueAndRemoveIfZero(client, result, priceDate, exchangeRateProvider);
 
             return result;
         }
@@ -117,7 +129,11 @@ namespace Toqe.PortfolioReader.Business
             securityValue.Shares += wrapper.GetSharesEffect();
         }
 
-        private void UpdatePriceAndMarketValueAndRemoveIfZero(List<SecurityValueModel> securityValues)
+        private void UpdatePriceAndMarketValueAndRemoveIfZero(
+            PClient client,
+            List<SecurityValueModel> securityValues,
+            DateTime priceDate,
+            Func<(string currency, DateTime date), decimal> exchangeRateProvider)
         {
             foreach (var securityValue in securityValues.ToList())
             {
@@ -127,12 +143,36 @@ namespace Toqe.PortfolioReader.Business
                     continue;
                 }
 
-                var latestPrice = securityValue.Security.Prices.OrderByDescending(x => x.Date).FirstOrDefault();
+                securityValue.Shares = Math.Round(securityValue.Shares, 5, MidpointRounding.AwayFromZero);
+
+                var latestPrice = securityValue.Security.Prices
+                    .OrderBy(x => Math.Abs((priceDate - PortfolioProtobufDataConverter.Instance.ConvertPriceDate(x.Date)).TotalDays))
+                    .FirstOrDefault();
 
                 if (latestPrice != null)
                 {
                     securityValue.Price = PortfolioProtobufDataConverter.Instance.ConvertPriceClose(latestPrice.Close);
+
+                    if (securityValue.Security.currencyCode != client.baseCurrency)
+                    {
+                        if (exchangeRateProvider == null)
+                        {
+                            throw new InvalidOperationException(
+                                $"Could not calculate value of security '{securityValue.Security.Name}' " +
+                                $"because its currency is '{securityValue.Security.currencyCode}' and no exchangeRateProvider is provided.");
+                        }
+
+                        var latestPriceDate = PortfolioProtobufDataConverter.Instance.ConvertPriceDate(latestPrice.Date);
+                        var rate = exchangeRateProvider((securityValue.Security.currencyCode, latestPriceDate));
+                        securityValue.Price = securityValue.Price.Value / (double)rate;
+                    }
+
                     securityValue.MarketValue = securityValue.Shares * securityValue.Price;
+
+                    if (securityValue.MarketValue.HasValue)
+                    {
+                        securityValue.MarketValue = Math.Round(securityValue.MarketValue.Value, 2, MidpointRounding.AwayFromZero);
+                    }
                 }
             }
         }

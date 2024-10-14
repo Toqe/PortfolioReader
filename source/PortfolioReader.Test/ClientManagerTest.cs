@@ -15,7 +15,7 @@ namespace Toqe.PortfolioReader.Test
             var client = reader.ReadClient(filename);
 
             var manager = new ClientManager();
-            var model = manager.GetCurrentPortfoliosValues(client);
+            var model = manager.GetCurrentPortfoliosValues(client, null);
 
             Assert.NotNull(model);
             Assert.Equal(2, model.Portfolios.Count);
