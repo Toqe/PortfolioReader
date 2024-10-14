@@ -1,0 +1,13 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>netstandard2.0</TargetFramework>
+		<RootNamespace>Toqe.PortfolioReader.EcbRates</RootNamespace>
+		<LangVersion>latest</LangVersion>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<InternalsVisibleTo Include="PortfolioReader.Test" />
+	</ItemGroup>
+
+</Project>
