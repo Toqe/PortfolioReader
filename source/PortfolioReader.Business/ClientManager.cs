@@ -11,7 +11,7 @@ namespace Toqe.PortfolioReader.Business
     {
         private static PHistoricalPriceDateComparer comparer = new PHistoricalPriceDateComparer();
 
-        public PortfoliosValuesModel GetCurrentPortfoliosValues(
+        public List<PortfolioValuesModel> GetCurrentPortfoliosValues(
             PClient client,
             Func<(string currency, DateTime date), decimal> exchangeRateProvider)
         {
@@ -38,17 +38,100 @@ namespace Toqe.PortfolioReader.Business
                 }
             }
 
-            var result = new PortfoliosValuesModel
-            {
-                Portfolios = portfolioMap.Values
-                    .OrderBy(x => x.Portfolio.Name)
-                    .ToList(),
-            };
+            var result = portfolioMap.Values
+                .OrderBy(x => x.Portfolio.Name)
+                .ToList();
 
-            foreach (var portfolio in result.Portfolios)
+            foreach (var portfolio in result)
             {
                 this.UpdatePriceAndMarketValueAndRemoveIfZero(client, portfolio.SecurityValues, DateTime.Today, exchangeRateProvider, null);
                 portfolio.SecurityValues = portfolio.SecurityValues.OrderBy(x => x.Security.Name).ToList();
+            }
+
+            return result;
+        }
+
+        public Dictionary<DateTime, List<PortfolioValuesModel>> GetPortfoliosValuesHistory(
+            PClient client,
+            IEnumerable<PTransaction> transactions,
+            Func<(string currency, DateTime date), decimal> exchangeRateProvider,
+            DateTime? endDate = null)
+        {
+            var result = new Dictionary<DateTime, List<PortfolioValuesModel>>();
+
+            if (!transactions.Any())
+            {
+                return result;
+            }
+
+            var dateOrderedTransactions = transactions.OrderBy(x => x.Date).ToList();
+
+            var startDate = dateOrderedTransactions.First().Date.Value.Date;
+            endDate = (endDate ?? dateOrderedTransactions.Last().Date).Value.Date;
+
+            Dictionary<PSecurity, List<PHistoricalPrice>> securityPricesCache = new Dictionary<PSecurity, List<PHistoricalPrice>>();
+
+            Func<PSecurity, List<PHistoricalPrice>> orderedSecurityPricesPerSecurityProvider = security =>
+            {
+                if (!securityPricesCache.ContainsKey(security))
+                {
+                    securityPricesCache.Add(security, security.Prices.OrderBy(x => x.Date).ToList());
+                }
+
+                return securityPricesCache[security];
+            };
+
+            var portfolioMap = new Dictionary<string, PortfolioValuesModel>();
+
+            foreach (var portfolio in client.Portfolios)
+            {
+                var portfolioValue = new PortfolioValuesModel
+                {
+                    Portfolio = portfolio,
+                };
+
+                portfolioMap.Add(portfolio.Uuid, portfolioValue);
+            }
+
+            var currentTransactionIndex = 0;
+            var currentDate = startDate;
+
+            while (currentDate <= endDate)
+            {
+                while (currentTransactionIndex < dateOrderedTransactions.Count
+                       && dateOrderedTransactions[currentTransactionIndex].Date.Value.Date == currentDate.Date)
+                {
+                    var transaction = dateOrderedTransactions[currentTransactionIndex];
+                    var wrapper = new TransactionWrapper(transaction, client);
+
+                    if (wrapper.Security != null)
+                    {
+                        this.UpdatePortfolioValue(wrapper.Portfolio, wrapper, portfolioMap);
+                        this.UpdatePortfolioValue(wrapper.OtherPortfolio, wrapper, portfolioMap);
+                    }
+
+                    currentTransactionIndex++;
+                }
+
+                var portfoliosOnDate = portfolioMap.Values
+                    .OrderBy(x => x.Portfolio.Name)
+                    .Select(x => x.Clone())
+                    .ToList();
+
+                foreach (var portfolio in portfoliosOnDate)
+                {
+                    this.UpdatePriceAndMarketValueAndRemoveIfZero(client, portfolio.SecurityValues, currentDate, exchangeRateProvider, orderedSecurityPricesPerSecurityProvider);
+                    portfolio.SecurityValues = portfolio.SecurityValues.OrderBy(x => x.Security.Name).ToList();
+                }
+
+                if (result.ContainsKey(currentDate))
+                {
+                    result.Remove(currentDate);
+                }
+
+                result.Add(currentDate, portfoliosOnDate);
+
+                currentDate = currentDate.AddDays(1).Date;
             }
 
             return result;

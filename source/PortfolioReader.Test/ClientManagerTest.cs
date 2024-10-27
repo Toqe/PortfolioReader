@@ -18,10 +18,10 @@ namespace Toqe.PortfolioReader.Test
             var model = manager.GetCurrentPortfoliosValues(client, null);
 
             Assert.NotNull(model);
-            Assert.Equal(2, model.Portfolios.Count);
+            Assert.Equal(2, model.Count);
 
             {
-                var depot = model.Portfolios[0];
+                var depot = model[0];
                 Assert.NotNull(depot);
                 Assert.Equal("depot", depot.Portfolio.Name);
 
@@ -41,7 +41,7 @@ namespace Toqe.PortfolioReader.Test
             }
 
             {
-                var depot2 = model.Portfolios[1];
+                var depot2 = model[1];
                 Assert.NotNull(depot2);
                 Assert.Equal("depot2", depot2.Portfolio.Name);
 
@@ -56,7 +56,7 @@ namespace Toqe.PortfolioReader.Test
         }
 
         [Fact]
-        public void TestGetPortfoliosValuesHistory()
+        public void TestGetSecuritiesValuesHistory()
         {
             var basePath = new TestHelper().GetTestDataBasePath();
             var reader = new PortfolioProtobufReader();
@@ -174,6 +174,164 @@ namespace Toqe.PortfolioReader.Test
             Assert.Equal(7, allianzValue.Shares);
             Assert.Equal(255.9d, allianzValue.Price);
             Assert.Equal(1791.3d, allianzValue.MarketValue);
+        }
+
+        [Fact]
+        public void TestGetPortfoliosValuesHistory()
+        {
+            var basePath = new TestHelper().GetTestDataBasePath();
+            var reader = new PortfolioProtobufReader();
+            var filename = Path.Combine(basePath.FullName, "test.portfolio");
+            var client = reader.ReadClient(filename);
+
+            var manager = new ClientManager();
+            var model = manager.GetPortfoliosValuesHistory(client, client.Transactions, null);
+
+            Assert.NotNull(model);
+
+            var startDate = new DateTime(2024, 7, 1);
+
+            for (var i = 0; i < 31; i++)
+            {
+                var xEntry = model.Skip(i).First();
+                Assert.Equal(startDate.AddDays(i), xEntry.Key);
+                Assert.Equal(2, xEntry.Value.Count);
+                Assert.Empty(xEntry.Value.First().SecurityValues);
+                Assert.Empty(xEntry.Value.Last().SecurityValues);
+            }
+
+            var entry = model.Skip(31).First();
+            Assert.Equal(new DateTime(2024, 8, 1), entry.Key);
+            Assert.Equal(2, entry.Value.Count);
+            Assert.Equal(1, entry.Value.First().SecurityValues.Count);
+            Assert.Empty(entry.Value.Last().SecurityValues);
+            var sapValue = entry.Value.First().SecurityValues.First();
+            Assert.Equal("SAP SE", sapValue.Security.Name);
+            Assert.Equal(10, sapValue.Shares);
+            Assert.Equal(191.46d, sapValue.Price);
+            Assert.Equal(1914.6d, sapValue.MarketValue);
+
+            entry = model.Skip(32).First();
+            Assert.Equal(new DateTime(2024, 8, 2), entry.Key);
+            Assert.Equal(2, entry.Value.Count);
+            Assert.Equal(1, entry.Value.First().SecurityValues.Count);
+            Assert.Empty(entry.Value.Last().SecurityValues);
+            sapValue = entry.Value.First().SecurityValues.First();
+            Assert.Equal("SAP SE", sapValue.Security.Name);
+            Assert.Equal(9, sapValue.Shares);
+            Assert.Equal(186.16d, sapValue.Price);
+            Assert.Equal(1675.44d, sapValue.MarketValue);
+
+            entry = model.Skip(33).First();
+            Assert.Equal(new DateTime(2024, 8, 3), entry.Key);
+            Assert.Equal(2, entry.Value.Count);
+            Assert.Equal(1, entry.Value.First().SecurityValues.Count);
+            Assert.Empty(entry.Value.Last().SecurityValues);
+            sapValue = entry.Value.First().SecurityValues.First();
+            Assert.Equal("SAP SE", sapValue.Security.Name);
+            Assert.Equal(9, sapValue.Shares);
+            Assert.Equal(186.16d, sapValue.Price);
+            Assert.Equal(1675.44d, sapValue.MarketValue);
+
+            entry = model.Skip(34).First();
+            Assert.Equal(new DateTime(2024, 8, 4), entry.Key);
+            Assert.Equal(2, entry.Value.Count);
+            Assert.Equal(1, entry.Value.First().SecurityValues.Count);
+            Assert.Empty(entry.Value.Last().SecurityValues);
+            sapValue = entry.Value.First().SecurityValues.First();
+            Assert.Equal("SAP SE", sapValue.Security.Name);
+            Assert.Equal(9, sapValue.Shares);
+            Assert.Equal(186.16d, sapValue.Price);
+            Assert.Equal(1675.44d, sapValue.MarketValue);
+
+            entry = model.Skip(35).First();
+            Assert.Equal(new DateTime(2024, 8, 5), entry.Key);
+            Assert.Equal(2, entry.Value.Count);
+            Assert.Equal(1, entry.Value.First().SecurityValues.Count);
+            Assert.Empty(entry.Value.Last().SecurityValues);
+            sapValue = entry.Value.First().SecurityValues.First();
+            Assert.Equal("SAP SE", sapValue.Security.Name);
+            Assert.Equal(11, sapValue.Shares);
+            Assert.Equal(181.22d, sapValue.Price);
+            Assert.Equal(1993.42d, sapValue.MarketValue);
+
+            entry = model.Skip(36).First();
+            Assert.Equal(new DateTime(2024, 8, 6), entry.Key);
+            Assert.Equal(2, entry.Value.Count);
+            Assert.Equal(1, entry.Value.First().SecurityValues.Count);
+            Assert.Empty(entry.Value.Last().SecurityValues);
+            sapValue = entry.Value.First().SecurityValues.First();
+            Assert.Equal("SAP SE", sapValue.Security.Name);
+            Assert.Equal(10.5, sapValue.Shares);
+            Assert.Equal(185.40d, sapValue.Price);
+            Assert.Equal(1946.7d, sapValue.MarketValue);
+
+            entry = model.Skip(37).First();
+            Assert.Equal(new DateTime(2024, 8, 7), entry.Key);
+            Assert.Equal(2, entry.Value.Count);
+            Assert.Equal(1, entry.Value.First().SecurityValues.Count);
+            Assert.Empty(entry.Value.Last().SecurityValues);
+            sapValue = entry.Value.First().SecurityValues.First();
+            Assert.Equal("SAP SE", sapValue.Security.Name);
+            Assert.Equal(10.5, sapValue.Shares);
+            Assert.Equal(187.98d, sapValue.Price);
+            Assert.Equal(1973.79d, sapValue.MarketValue);
+
+            entry = model.Skip(38).First();
+            Assert.Equal(new DateTime(2024, 8, 8), entry.Key);
+            Assert.Equal(2, entry.Value.Count);
+            Assert.Equal(1, entry.Value.First().SecurityValues.Count);
+            Assert.Empty(entry.Value.Last().SecurityValues);
+            sapValue = entry.Value.First().SecurityValues.First();
+            Assert.Equal("SAP SE", sapValue.Security.Name);
+            Assert.Equal(10.5, sapValue.Shares);
+            Assert.Equal(188.28d, sapValue.Price);
+            Assert.Equal(1976.94d, sapValue.MarketValue);
+
+            entry = model.Skip(39).First();
+            Assert.Equal(new DateTime(2024, 8, 9), entry.Key);
+            Assert.Equal(2, entry.Value.Count);
+            Assert.Equal(1, entry.Value.First().SecurityValues.Count);
+            Assert.Empty(entry.Value.Last().SecurityValues);
+            sapValue = entry.Value.First().SecurityValues.First();
+            Assert.Equal("SAP SE", sapValue.Security.Name);
+            Assert.Equal(10.5, sapValue.Shares);
+            Assert.Equal(189.92d, sapValue.Price);
+            Assert.Equal(1994.16d, sapValue.MarketValue);
+
+            entry = model.Skip(40).First();
+            Assert.Equal(new DateTime(2024, 8, 10), entry.Key);
+            Assert.Equal(2, entry.Value.Count);
+            Assert.Equal(2, entry.Value.First().SecurityValues.Count);
+            Assert.Empty(entry.Value.Last().SecurityValues);
+            sapValue = entry.Value.First().SecurityValues.First(x => x.Security.Name == "SAP SE");
+            Assert.Equal(10.5, sapValue.Shares);
+            Assert.Equal(189.92d, sapValue.Price);
+            Assert.Equal(1994.16d, sapValue.MarketValue);
+            var allianzValue = entry.Value.First().SecurityValues.First(x => x.Security.Name == "Allianz SE");
+            Assert.Equal(7, allianzValue.Shares);
+            Assert.Equal(255.9d, allianzValue.Price);
+            Assert.Equal(1791.3d, allianzValue.MarketValue);
+            Assert.Equal(allianzValue, entry.Value.First().SecurityValues.First());
+            Assert.Equal(sapValue, entry.Value.First().SecurityValues.Last());
+
+            entry = model.Skip(41).First();
+            Assert.Equal(new DateTime(2024, 8, 11), entry.Key);
+            Assert.Equal(2, entry.Value.Count);
+            Assert.Equal(2, entry.Value.First().SecurityValues.Count);
+            Assert.Equal(1, entry.Value.Last().SecurityValues.Count);
+            sapValue = entry.Value.First().SecurityValues.First(x => x.Security.Name == "SAP SE");
+            Assert.Equal(10.5, sapValue.Shares);
+            Assert.Equal(189.92d, sapValue.Price);
+            Assert.Equal(1994.16d, sapValue.MarketValue);
+            var allianzValueDepot1 = entry.Value.First().SecurityValues.First(x => x.Security.Name == "Allianz SE");
+            Assert.Equal(2, allianzValueDepot1.Shares);
+            Assert.Equal(255.9d, allianzValueDepot1.Price);
+            Assert.Equal(511.8d, allianzValueDepot1.MarketValue);
+            var allianzValueDepot2 = entry.Value.Last().SecurityValues.First();
+            Assert.Equal(5, allianzValueDepot2.Shares);
+            Assert.Equal(255.9d, allianzValueDepot2.Price);
+            Assert.Equal(1279.5d, allianzValueDepot2.MarketValue);
         }
     }
 }
