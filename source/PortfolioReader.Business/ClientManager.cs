@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using Toqe.PortfolioReader.Business.Helpers;
 using Toqe.PortfolioReader.Business.Models;
 using Toqe.PortfolioReader.Business.Protobuf;
 
@@ -8,6 +9,8 @@ namespace Toqe.PortfolioReader.Business
 {
     public class ClientManager
     {
+        private static PHistoricalPriceDateComparer comparer = new PHistoricalPriceDateComparer();
+
         public PortfoliosValuesModel GetCurrentPortfoliosValues(
             PClient client,
             Func<(string currency, DateTime date), decimal> exchangeRateProvider)
@@ -44,7 +47,7 @@ namespace Toqe.PortfolioReader.Business
 
             foreach (var portfolio in result.Portfolios)
             {
-                this.UpdatePriceAndMarketValueAndRemoveIfZero(client, portfolio.SecurityValues, DateTime.Today, exchangeRateProvider);
+                this.UpdatePriceAndMarketValueAndRemoveIfZero(client, portfolio.SecurityValues, DateTime.Today, exchangeRateProvider, null);
                 portfolio.SecurityValues = portfolio.SecurityValues.OrderBy(x => x.Security.Name).ToList();
             }
 
@@ -80,7 +83,55 @@ namespace Toqe.PortfolioReader.Business
                 .OrderBy(x => x.Security.Name)
                 .ToList();
 
-            this.UpdatePriceAndMarketValueAndRemoveIfZero(client, result, priceDate, exchangeRateProvider);
+            this.UpdatePriceAndMarketValueAndRemoveIfZero(client, result, priceDate, exchangeRateProvider, null);
+
+            return result;
+        }
+
+        public Dictionary<DateTime, List<SecurityValueModel>> GetSecuritiesValuesHistory(
+            PClient client,
+            IEnumerable<PTransaction> transactions,
+            Func<(string currency, DateTime date), decimal> exchangeRateProvider)
+        {
+            var result = new Dictionary<DateTime, List<SecurityValueModel>>();
+            var securityMap = new Dictionary<string, SecurityValueModel>();
+            Dictionary<PSecurity, List<PHistoricalPrice>> securityPricesCache = new Dictionary<PSecurity, List<PHistoricalPrice>>();
+
+            Func<PSecurity, List<PHistoricalPrice>> orderedSecurityPricesPerSecurityProvider = security =>
+            {
+                if (!securityPricesCache.ContainsKey(security))
+                {
+                    securityPricesCache.Add(security, security.Prices.OrderBy(x => x.Date).ToList());
+                }
+
+                return securityPricesCache[security];
+            };
+
+            foreach (var transaction in transactions.OrderBy(x => x.Date).ToList())
+            {
+                var wrapper = new TransactionWrapper(transaction, client);
+
+                if (wrapper.Security != null)
+                {
+                    var date = transaction.Date.Value.Date;
+
+                    this.UpdateSecurityValue(wrapper, securityMap);
+
+                    var securitiesOnDate = securityMap.Values
+                        .OrderBy(x => x.Security.Name)
+                        .Select(x => x.Clone())
+                        .ToList();
+
+                    this.UpdatePriceAndMarketValueAndRemoveIfZero(client, securitiesOnDate, date, exchangeRateProvider, orderedSecurityPricesPerSecurityProvider);
+
+                    if (result.ContainsKey(date))
+                    {
+                        result.Remove(date);
+                    }
+
+                    result.Add(date, securitiesOnDate);
+                }
+            }
 
             return result;
         }
@@ -133,7 +184,8 @@ namespace Toqe.PortfolioReader.Business
             PClient client,
             List<SecurityValueModel> securityValues,
             DateTime priceDate,
-            Func<(string currency, DateTime date), decimal> exchangeRateProvider)
+            Func<(string currency, DateTime date), decimal> exchangeRateProvider,
+            Func<PSecurity, List<PHistoricalPrice>> orderedSecurityPricesPerSecurityProvider)
         {
             foreach (var securityValue in securityValues.ToList())
             {
@@ -145,9 +197,33 @@ namespace Toqe.PortfolioReader.Business
 
                 securityValue.Shares = Math.Round(securityValue.Shares, 5, MidpointRounding.AwayFromZero);
 
-                var latestPrice = securityValue.Security.Prices
-                    .OrderBy(x => Math.Abs((priceDate - PortfolioProtobufDataConverter.Instance.ConvertPriceDate(x.Date)).TotalDays))
-                    .FirstOrDefault();
+                PHistoricalPrice latestPrice = null;
+                var orderedPrices = orderedSecurityPricesPerSecurityProvider?.Invoke(securityValue.Security);
+
+                if (orderedPrices == null)
+                {
+                    orderedPrices = securityValue.Security.Prices.OrderBy(x => x.Date).ToList();
+                }
+
+                if (orderedPrices != null && orderedPrices.Any())
+                {
+                    var index = orderedPrices.BinarySearch(
+                        new PHistoricalPrice { Date = PortfolioProtobufDataConverter.Instance.ConvertPriceDate(priceDate) },
+                        comparer);
+
+                    if (index >= 0)
+                    {
+                        latestPrice = orderedPrices[index];
+                    }
+                    else if (~index == orderedPrices.Count)
+                    {
+                        latestPrice = orderedPrices.LastOrDefault();
+                    }
+                    else
+                    {
+                        latestPrice = orderedPrices[Math.Max(0, (~index) - 1)];
+                    }
+                }
 
                 if (latestPrice != null)
                 {

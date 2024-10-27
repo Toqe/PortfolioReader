@@ -11,6 +11,11 @@ namespace Toqe.PortfolioReader.Business.Protobuf
             return new DateTime(1970, 1, 1).AddDays(value);
         }
 
+        public long ConvertPriceDate(DateTime value)
+        {
+            return (long)Math.Round((value - new DateTime(1970, 1, 1)).TotalDays, MidpointRounding.AwayFromZero);
+        }
+
         public double ConvertPriceClose(long value)
         {
             return this.ConvertDouble(value, 8);
