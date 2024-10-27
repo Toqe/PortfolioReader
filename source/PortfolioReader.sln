@@ -7,7 +7,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PortfolioReader.Business", 
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PortfolioReader.Test", "PortfolioReader.Test\PortfolioReader.Test.csproj", "{8DAA008B-5A23-4D14-9E3D-643A80667211}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PortfolioReader.EcbRates", "PortfolioReader.EcbRates\PortfolioReader.EcbRates.csproj", "{7874B207-2F99-4501-A4AF-C487BE5B7281}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PortfolioReader.EcbRates", "PortfolioReader.EcbRates\PortfolioReader.EcbRates.csproj", "{7874B207-2F99-4501-A4AF-C487BE5B7281}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

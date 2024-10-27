@@ -1,20 +1,23 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using Toqe.PortfolioReader.EcbRates.Helpers;
 using Toqe.PortfolioReader.EcbRates.Models;
 
 namespace Toqe.PortfolioReader.EcbRates
 {
     public class EcbRateProvider
     {
-        private Dictionary<string, EcbRateValue[]> currencyToEcbRateValuesMap;
+        private static EcbRateValueDateComparer comparer = new EcbRateValueDateComparer();
+
+        private Dictionary<string, List<EcbRateValue>> currencyToEcbRateValuesMap;
 
         public EcbRateProvider(
             List<EcbRateValue> rates)
         {
             currencyToEcbRateValuesMap = rates
                 .GroupBy(x => x.Currency)
-                .ToDictionary(x => x.Key, x => x.OrderBy(x => x.Date).ToArray());
+                .ToDictionary(x => x.Key, x => x.OrderBy(x => x.Date).ToList());
         }
 
         public decimal Get(string currency, DateTime date)
@@ -27,40 +30,25 @@ namespace Toqe.PortfolioReader.EcbRates
             }
 
             var index = this.BinarySearch(currencyBucket, date);
+
             return currencyBucket[index].Rate;
         }
 
-        internal int BinarySearch(EcbRateValue[] rates, DateTime date)
+        internal int BinarySearch(List<EcbRateValue> rates, DateTime date)
         {
-            int lo = 0, hi = rates.Length - 1;
+            var index = rates.ToList().BinarySearch(new EcbRateValue { Date = date }, comparer);
 
-            while (lo <= hi)
+            if (index >= 0)
             {
-                var median = lo + (hi - lo >> 1);
-                var medianDate = rates[median].Date;
-                var num = medianDate.CompareTo(date);
-
-                if (num == 0)
-                {
-                    return median;
-                }
-
-                if (lo == hi)
-                {
-                    return lo;
-                }
-
-                if (num < 0)
-                {
-                    lo = median + 1;
-                }
-                else
-                {
-                    hi = median - 1;
-                }
+                return index;
             }
 
-            return lo;
+            if (~index == rates.Count)
+            {
+                return Math.Max(0, rates.Count - 1);
+            }
+
+            return ~index;
         }
     }
 }

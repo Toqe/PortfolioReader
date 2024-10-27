@@ -70,11 +70,11 @@ namespace Toqe.PortfolioReader.Test.EcbRates
             var provider = new EcbRateProvider(new List<EcbRateValue>());
             var date = new DateTime(2024, 10, 14);
 
-            var rates = new EcbRateValue[0];
+            var rates = new List<EcbRateValue>();
             var index = provider.BinarySearch(rates, date);
             Assert.Equal(0, index);
 
-            rates = new EcbRateValue[]
+            rates = new List<EcbRateValue>()
             {
                 new EcbRateValue { Date = new DateTime(2024, 10, 14) },
             };
@@ -82,7 +82,7 @@ namespace Toqe.PortfolioReader.Test.EcbRates
             index = provider.BinarySearch(rates, date);
             Assert.Equal(0, index);
 
-            rates = new EcbRateValue[]
+            rates = new List<EcbRateValue>()
             {
                 new EcbRateValue { Date = new DateTime(2024, 10, 14) },
                 new EcbRateValue { Date = new DateTime(2024, 10, 15) },
@@ -91,7 +91,7 @@ namespace Toqe.PortfolioReader.Test.EcbRates
             index = provider.BinarySearch(rates, date);
             Assert.Equal(0, index);
 
-            rates = new EcbRateValue[]
+            rates = new List<EcbRateValue>()
             {
                 new EcbRateValue { Date = new DateTime(2024, 10, 13) },
                 new EcbRateValue { Date = new DateTime(2024, 10, 14) },
@@ -100,7 +100,7 @@ namespace Toqe.PortfolioReader.Test.EcbRates
             index = provider.BinarySearch(rates, date);
             Assert.Equal(1, index);
 
-            rates = new EcbRateValue[]
+            rates = new List<EcbRateValue>()
             {
                 new EcbRateValue { Date = new DateTime(2024, 10, 12) },
                 new EcbRateValue { Date = new DateTime(2024, 10, 13) },
@@ -109,7 +109,7 @@ namespace Toqe.PortfolioReader.Test.EcbRates
             index = provider.BinarySearch(rates, date);
             Assert.Equal(1, index);
 
-            rates = new EcbRateValue[]
+            rates = new List<EcbRateValue>()
             {
                 new EcbRateValue { Date = new DateTime(2024, 10, 15) },
                 new EcbRateValue { Date = new DateTime(2024, 10, 16) },
@@ -118,7 +118,7 @@ namespace Toqe.PortfolioReader.Test.EcbRates
             index = provider.BinarySearch(rates, date);
             Assert.Equal(0, index);
 
-            rates = new EcbRateValue[]
+            rates = new List<EcbRateValue>()
             {
                 new EcbRateValue { Date = new DateTime(2024, 10, 11) },
                 new EcbRateValue { Date = new DateTime(2024, 10, 12) },
@@ -128,7 +128,7 @@ namespace Toqe.PortfolioReader.Test.EcbRates
             index = provider.BinarySearch(rates, date);
             Assert.Equal(2, index);
 
-            rates = new EcbRateValue[]
+            rates = new List<EcbRateValue>()
             {
                 new EcbRateValue { Date = new DateTime(2024, 10, 12) },
                 new EcbRateValue { Date = new DateTime(2024, 10, 13) },
@@ -138,7 +138,7 @@ namespace Toqe.PortfolioReader.Test.EcbRates
             index = provider.BinarySearch(rates, date);
             Assert.Equal(2, index);
 
-            rates = new EcbRateValue[]
+            rates = new List<EcbRateValue>()
             {
                 new EcbRateValue { Date = new DateTime(2024, 10, 13) },
                 new EcbRateValue { Date = new DateTime(2024, 10, 14) },
@@ -148,7 +148,7 @@ namespace Toqe.PortfolioReader.Test.EcbRates
             index = provider.BinarySearch(rates, date);
             Assert.Equal(1, index);
 
-            rates = new EcbRateValue[]
+            rates = new List<EcbRateValue>()
             {
                 new EcbRateValue { Date = new DateTime(2024, 10, 14) },
                 new EcbRateValue { Date = new DateTime(2024, 10, 15) },
@@ -158,7 +158,7 @@ namespace Toqe.PortfolioReader.Test.EcbRates
             index = provider.BinarySearch(rates, date);
             Assert.Equal(0, index);
 
-            rates = new EcbRateValue[]
+            rates = new List<EcbRateValue>()
             {
                 new EcbRateValue { Date = new DateTime(2024, 10, 15) },
                 new EcbRateValue { Date = new DateTime(2024, 10, 16) },
