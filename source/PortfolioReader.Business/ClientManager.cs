@@ -91,9 +91,21 @@ namespace Toqe.PortfolioReader.Business
         public Dictionary<DateTime, List<SecurityValueModel>> GetSecuritiesValuesHistory(
             PClient client,
             IEnumerable<PTransaction> transactions,
-            Func<(string currency, DateTime date), decimal> exchangeRateProvider)
+            Func<(string currency, DateTime date), decimal> exchangeRateProvider,
+            DateTime? endDate = null)
         {
             var result = new Dictionary<DateTime, List<SecurityValueModel>>();
+
+            if (!transactions.Any())
+            {
+                return result;
+            }
+
+            var dateOrderedTransactions = transactions.OrderBy(x => x.Date).ToList();
+
+            var startDate = dateOrderedTransactions.First().Date.Value.Date;
+            endDate = (endDate ?? dateOrderedTransactions.Last().Date).Value.Date;
+
             var securityMap = new Dictionary<string, SecurityValueModel>();
             Dictionary<PSecurity, List<PHistoricalPrice>> securityPricesCache = new Dictionary<PSecurity, List<PHistoricalPrice>>();
 
@@ -107,30 +119,40 @@ namespace Toqe.PortfolioReader.Business
                 return securityPricesCache[security];
             };
 
-            foreach (var transaction in transactions.OrderBy(x => x.Date).ToList())
+            var currentTransactionIndex = 0;
+            var currentDate = startDate;
+
+            while (currentDate <= endDate)
             {
-                var wrapper = new TransactionWrapper(transaction, client);
-
-                if (wrapper.Security != null)
+                while (currentTransactionIndex < dateOrderedTransactions.Count
+                    && dateOrderedTransactions[currentTransactionIndex].Date.Value.Date == currentDate.Date)
                 {
-                    var date = transaction.Date.Value.Date;
+                    var transaction = dateOrderedTransactions[currentTransactionIndex];
+                    var wrapper = new TransactionWrapper(transaction, client);
 
-                    this.UpdateSecurityValue(wrapper, securityMap);
+                    if (wrapper.Security != null)
+                    {
+                        this.UpdateSecurityValue(wrapper, securityMap);
+                    }
 
-                    var securitiesOnDate = securityMap.Values
+                    currentTransactionIndex++;
+                }
+
+                var securitiesOnDate = securityMap.Values
                         .OrderBy(x => x.Security.Name)
                         .Select(x => x.Clone())
                         .ToList();
 
-                    this.UpdatePriceAndMarketValueAndRemoveIfZero(client, securitiesOnDate, date, exchangeRateProvider, orderedSecurityPricesPerSecurityProvider);
+                this.UpdatePriceAndMarketValueAndRemoveIfZero(client, securitiesOnDate, currentDate, exchangeRateProvider, orderedSecurityPricesPerSecurityProvider);
 
-                    if (result.ContainsKey(date))
-                    {
-                        result.Remove(date);
-                    }
-
-                    result.Add(date, securitiesOnDate);
+                if (result.ContainsKey(currentDate))
+                {
+                    result.Remove(currentDate);
                 }
+
+                result.Add(currentDate, securitiesOnDate);
+
+                currentDate = currentDate.AddDays(1).Date;
             }
 
             return result;

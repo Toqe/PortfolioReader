@@ -68,19 +68,16 @@ namespace Toqe.PortfolioReader.Test
 
             Assert.NotNull(model);
 
-            var entry = model.First();
-            Assert.Equal(new DateTime(2024, 7, 5), entry.Key);
-            Assert.Empty(entry.Value);
+            var startDate = new DateTime(2024, 7, 1);
 
-            entry = model.Skip(1).First();
-            Assert.Equal(new DateTime(2024, 7, 6), entry.Key);
-            Assert.Empty(entry.Value);
-
-            entry = model.Skip(2).First();
-            Assert.Equal(new DateTime(2024, 7, 8), entry.Key);
-            Assert.Empty(entry.Value);
-
-            entry = model.Skip(3).First();
+            for (var i = 0; i < 31; i++)
+            {
+                var xEntry = model.Skip(i).First();
+                Assert.Equal(startDate.AddDays(i), xEntry.Key);
+                Assert.Empty(xEntry.Value);
+            }
+            
+            var entry = model.Skip(31).First();
             Assert.Equal(new DateTime(2024, 8, 1), entry.Key);
             Assert.Equal(1, entry.Value.Count);
             Assert.Equal("SAP SE", entry.Value.First().Security.Name);
@@ -88,7 +85,7 @@ namespace Toqe.PortfolioReader.Test
             Assert.Equal(191.46d, entry.Value.First().Price);
             Assert.Equal(1914.6d, entry.Value.First().MarketValue);
 
-            entry = model.Skip(4).First();
+            entry = model.Skip(32).First();
             Assert.Equal(new DateTime(2024, 8, 2), entry.Key);
             Assert.Equal(1, entry.Value.Count);
             Assert.Equal("SAP SE", entry.Value.First().Security.Name);
@@ -96,7 +93,7 @@ namespace Toqe.PortfolioReader.Test
             Assert.Equal(186.16d, entry.Value.First().Price);
             Assert.Equal(1675.44d, entry.Value.First().MarketValue);
 
-            entry = model.Skip(5).First();
+            entry = model.Skip(33).First();
             Assert.Equal(new DateTime(2024, 8, 3), entry.Key);
             Assert.Equal(1, entry.Value.Count);
             Assert.Equal("SAP SE", entry.Value.First().Security.Name);
@@ -104,7 +101,7 @@ namespace Toqe.PortfolioReader.Test
             Assert.Equal(186.16d, entry.Value.First().Price);
             Assert.Equal(1675.44d, entry.Value.First().MarketValue);
 
-            entry = model.Skip(6).First();
+            entry = model.Skip(34).First();
             Assert.Equal(new DateTime(2024, 8, 4), entry.Key);
             Assert.Equal(1, entry.Value.Count);
             Assert.Equal("SAP SE", entry.Value.First().Security.Name);
@@ -112,7 +109,7 @@ namespace Toqe.PortfolioReader.Test
             Assert.Equal(186.16d, entry.Value.First().Price);
             Assert.Equal(1675.44d, entry.Value.First().MarketValue);
 
-            entry = model.Skip(7).First();
+            entry = model.Skip(35).First();
             Assert.Equal(new DateTime(2024, 8, 5), entry.Key);
             Assert.Equal(1, entry.Value.Count);
             Assert.Equal("SAP SE", entry.Value.First().Security.Name);
@@ -120,7 +117,7 @@ namespace Toqe.PortfolioReader.Test
             Assert.Equal(181.22d, entry.Value.First().Price);
             Assert.Equal(1993.42d, entry.Value.First().MarketValue);
 
-            entry = model.Skip(8).First();
+            entry = model.Skip(36).First();
             Assert.Equal(new DateTime(2024, 8, 6), entry.Key);
             Assert.Equal(1, entry.Value.Count);
             Assert.Equal("SAP SE", entry.Value.First().Security.Name);
@@ -128,7 +125,31 @@ namespace Toqe.PortfolioReader.Test
             Assert.Equal(185.40d, entry.Value.First().Price);
             Assert.Equal(1946.7d, entry.Value.First().MarketValue);
 
-            entry = model.Skip(9).First();
+            entry = model.Skip(37).First();
+            Assert.Equal(new DateTime(2024, 8, 7), entry.Key);
+            Assert.Equal(1, entry.Value.Count);
+            Assert.Equal("SAP SE", entry.Value.First().Security.Name);
+            Assert.Equal(10.5, entry.Value.First().Shares);
+            Assert.Equal(187.98d, entry.Value.First().Price);
+            Assert.Equal(1973.79d, entry.Value.First().MarketValue);
+
+            entry = model.Skip(38).First();
+            Assert.Equal(new DateTime(2024, 8, 8), entry.Key);
+            Assert.Equal(1, entry.Value.Count);
+            Assert.Equal("SAP SE", entry.Value.First().Security.Name);
+            Assert.Equal(10.5, entry.Value.First().Shares);
+            Assert.Equal(188.28d, entry.Value.First().Price);
+            Assert.Equal(1976.94d, entry.Value.First().MarketValue);
+
+            entry = model.Skip(39).First();
+            Assert.Equal(new DateTime(2024, 8, 9), entry.Key);
+            Assert.Equal(1, entry.Value.Count);
+            Assert.Equal("SAP SE", entry.Value.First().Security.Name);
+            Assert.Equal(10.5, entry.Value.First().Shares);
+            Assert.Equal(189.92d, entry.Value.First().Price);
+            Assert.Equal(1994.16d, entry.Value.First().MarketValue);
+
+            entry = model.Skip(40).First();
             Assert.Equal(new DateTime(2024, 8, 10), entry.Key);
             Assert.Equal(2, entry.Value.Count);
             var sapValue = entry.Value.First(x => x.Security.Name == "SAP SE");
@@ -142,7 +163,7 @@ namespace Toqe.PortfolioReader.Test
             Assert.Equal(allianzValue, entry.Value.First());
             Assert.Equal(sapValue, entry.Value.Last());
 
-            entry = model.Skip(10).First();
+            entry = model.Skip(41).First();
             Assert.Equal(new DateTime(2024, 8, 11), entry.Key);
             Assert.Equal(2, entry.Value.Count);
             sapValue = entry.Value.First(x => x.Security.Name == "SAP SE");
