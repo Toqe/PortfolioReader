@@ -25,19 +25,26 @@ namespace Toqe.PortfolioReader.Test.Protobuf
 
             var writtenAndReadClient = reader.ReadClient(writeFilename);
 
-            this.Validate(readClient, writtenAndReadClient);
+            this.Validate(typeof(PClient), readClient, writtenAndReadClient);
         }
 
-        private void Validate<T>(T expected, T actual)
+        private void Validate(Type type, object expected, object actual)
         {
-            foreach (var property in typeof(T).GetProperties())
+            Assert.True((expected == null) == (actual == null));
+
+            if (expected == null)
+            {
+                return;
+            }
+
+            foreach (var property in type.GetProperties())
             {
                 var expectedProp = property.GetValue(expected);
                 var actualProp = property.GetValue(actual);
 
                 if (property.PropertyType.Namespace.StartsWith("Toqe.PortfolioReader.Business.Protobuf"))
                 {
-                    this.Validate(expectedProp, actualProp);
+                    this.Validate(property.PropertyType, expectedProp, actualProp);
                 }
                 else if (property.PropertyType.IsGenericType &&
                          property.PropertyType.GetGenericTypeDefinition() == typeof(List<>))
@@ -50,7 +57,7 @@ namespace Toqe.PortfolioReader.Test.Protobuf
 
                         for (var i = 0; i < ((IList)expectedProp).Count; i++)
                         {
-                            this.Validate(((IList)expectedProp)[i], ((IList)actualProp)[i]);
+                            this.Validate(property.PropertyType.GetGenericArguments()[0], ((IList)expectedProp)[i], ((IList)actualProp)[i]);
                         }
                     }
                 }
@@ -66,7 +73,7 @@ namespace Toqe.PortfolioReader.Test.Protobuf
 
                         foreach (var key in ((IDictionary)expectedProp).Keys)
                         {
-                            this.Validate(((IDictionary)expectedProp)[key], ((IDictionary)actualProp)[key]);
+                            this.Validate(property.PropertyType.GetGenericArguments()[1], ((IDictionary)expectedProp)[key], ((IDictionary)actualProp)[key]);
                         }
                     }
                 }
