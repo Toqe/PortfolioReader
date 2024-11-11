@@ -42,7 +42,7 @@ namespace Toqe.PortfolioReader.Test.Protobuf
                 var expectedProp = property.GetValue(expected);
                 var actualProp = property.GetValue(actual);
 
-                if (property.PropertyType.Namespace.StartsWith("Toqe.PortfolioReader.Business.Protobuf"))
+                if (property.PropertyType.Namespace == typeof(PClient).Namespace)
                 {
                     this.Validate(property.PropertyType, expectedProp, actualProp);
                 }
