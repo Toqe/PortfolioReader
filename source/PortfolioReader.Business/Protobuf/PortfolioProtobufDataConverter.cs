@@ -1,4 +1,7 @@
 ﻿using System;
+using System.Globalization;
+using System.Linq;
+using System.Numerics;
 
 namespace Toqe.PortfolioReader.Business.Protobuf
 {
@@ -29,6 +32,13 @@ namespace Toqe.PortfolioReader.Business.Protobuf
         public double ConvertTransactionAmount(long value)
         {
             return this.ConvertDouble(value, 2);
+        }
+
+        public decimal ConvertDecimalValue(PDecimalValue value)
+        {
+            var bigInt = new BigInteger(Enumerable.Repeat((byte)0, 1).Concat(value.Value.AsEnumerable()).Reverse().ToArray());
+            var bigIntDecimal = decimal.Parse(bigInt.ToString(CultureInfo.InvariantCulture), CultureInfo.InvariantCulture);
+            return bigIntDecimal * (decimal)Math.Pow(10, -value.Scale);
         }
 
         public bool IsSharesZero(double shares)
