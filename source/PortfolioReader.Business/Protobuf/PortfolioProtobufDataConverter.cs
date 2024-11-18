@@ -36,9 +36,25 @@ namespace Toqe.PortfolioReader.Business.Protobuf
 
         public decimal ConvertDecimalValue(PDecimalValue value)
         {
-            var bigInt = new BigInteger(Enumerable.Repeat((byte)0, 1).Concat(value.Value.AsEnumerable()).Reverse().ToArray());
-            var bigIntDecimal = decimal.Parse(bigInt.ToString(CultureInfo.InvariantCulture), CultureInfo.InvariantCulture);
-            return bigIntDecimal * (decimal)Math.Pow(10, -value.Scale);
+            var bigInt = new BigInteger(value.Value, isBigEndian: true, isUnsigned: false);
+            return (decimal)bigInt / (decimal)Math.Pow(10, value.Scale);
+        }
+
+        public PDecimalValue ConvertPDecimalValue(decimal value)
+        {
+            uint fixedPrecision = 10;
+            uint fixedScale = 10;
+
+            var scaledDecimal = value * (decimal)Math.Pow(10, fixedScale);
+            var bigInt = new BigInteger(scaledDecimal);
+            var valueBytes = bigInt.ToByteArray(isBigEndian: true, isUnsigned: false);
+
+            return new PDecimalValue
+            {
+                Scale = fixedScale,
+                Precision = fixedPrecision,
+                Value = valueBytes
+            };
         }
 
         public bool IsSharesZero(double shares)
