@@ -241,6 +241,82 @@ namespace Toqe.PortfolioReader.Business
             return result;
         }
 
+        public ClassificationRebalancingModel GetClassificationRebalancing(
+            PClient client,
+            PTaxonomy taxonomy,
+            Func<(string currency, DateTime date), decimal> exchangeRateProvider)
+        {
+            var root = taxonomy.Classifications.SingleOrDefault(x => string.IsNullOrWhiteSpace(x.parentId));
+
+            var currentSecuritiesValues = this.GetCurrentSecuritiesValues(client, exchangeRateProvider);
+            var classificationValuesCache = new Dictionary<string, (double, List<SecurityValueModel>)>();
+
+            (double, List<SecurityValueModel>) GetClassificationMarketValueAndSecurities(PTaxonomy.Classification c)
+            {
+                if (classificationValuesCache.TryGetValue(c.Id, out var marketValue))
+                {
+                    return marketValue;
+                }
+
+                double sumValue = 0;
+                var securityValues = new List<SecurityValueModel>();
+
+                foreach (var assignment in c.Assignments)
+                {
+                    var securityValue = currentSecuritiesValues.FirstOrDefault(x => x.Security.Uuid == assignment.investmentVehicle);
+
+                    if (securityValue != null)
+                    {
+                        sumValue += securityValue?.MarketValue ?? 0;
+                        securityValues.Add(securityValue);
+                    }
+                }
+
+                var children = taxonomy.Classifications.Where(x => x.parentId == c.Id);
+
+                foreach (var child in children)
+                {
+                    sumValue += GetClassificationMarketValueAndSecurities(child).Item1;
+                }
+
+                sumValue = Math.Round(sumValue, 2, MidpointRounding.AwayFromZero);
+                classificationValuesCache.Add(c.Id, (sumValue, securityValues));
+                return (sumValue, securityValues);
+            }
+
+            ClassificationRebalancingModel Build(
+                PTaxonomy.Classification classification,
+                ClassificationRebalancingModel parent,
+                double totalValue)
+            {
+                var marketValueAndSecurities = GetClassificationMarketValueAndSecurities(classification);
+                var result = new ClassificationRebalancingModel();
+                result.Classification = classification;
+                result.MarketValue = marketValueAndSecurities.Item1;
+                result.SecurityValues = marketValueAndSecurities.Item2;
+                result.SupposedWeightPercentage = classification.Weight / 100d;
+                result.SupposedTotalWeightPercentage = parent == null ? 100 : parent.SupposedTotalWeightPercentage * result.SupposedWeightPercentage / 100;
+                result.SupposedValue = Math.Round(result.SupposedTotalWeightPercentage * totalValue / 100, 2, MidpointRounding.AwayFromZero);
+                result.CurrentTotalWeightPercentage = result.MarketValue / totalValue * 100;
+                result.CurrentWeightPercentage = parent == null ? 100 : Math.Round(result.MarketValue / parent.MarketValue * 100, 2, MidpointRounding.AwayFromZero);
+
+                var children = taxonomy.Classifications
+                    .Where(x => x.parentId == classification.Id)
+                    .OrderBy(x => x.Name);
+
+                foreach (var child in children)
+                {
+                    var childResult = Build(child, result, totalValue);
+                    childResult.Parent = result;
+                    result.Children.Add(childResult);
+                }
+
+                return result;
+            }
+
+            return Build(root, null, GetClassificationMarketValueAndSecurities(root).Item1);
+        }
+
         private void UpdatePortfolioValue(
             PPortfolio portfolio,
             TransactionWrapper wrapper,
