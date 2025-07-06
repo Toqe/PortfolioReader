@@ -317,6 +317,151 @@ namespace Toqe.PortfolioReader.Business
             return Build(root, null, GetClassificationMarketValueAndSecurities(root).Item1);
         }
 
+        public PortfolioTransactionStatus GetPortfolioTransactionStatus(
+            PClient client,
+            IEnumerable<PTransaction> transactionsEnumerable,
+            Func<(string currency, DateTime date), decimal> exchangeRateProvider,
+            PortfolioTransactionStatus initialStatus = null)
+        {
+            var result = initialStatus ?? new PortfolioTransactionStatus();
+
+            var transactions = transactionsEnumerable
+                .Select(x => new TransactionWrapper(x, client))
+                .OrderBy(x => x.Transaction.Date)
+                .ToList();
+
+            void AddAction(PortfolioTransactionAction action)
+            {
+                result.Actions.Add(action);
+
+                if (action.Security != null)
+                {
+                    if (!result.ActionsPerSecurity.ContainsKey(action.Security.Uuid))
+                    {
+                        result.ActionsPerSecurity[action.Security.Uuid] = (action.Security, new List<PortfolioTransactionAction>());
+                    }
+
+                    result.ActionsPerSecurity[action.Security.Uuid].actions.Add(action);
+                }
+            }
+
+            foreach (var transaction in transactions)
+            {
+                var action = new PortfolioTransactionAction
+                {
+                    Transaction = transaction,
+                    Date = transaction.Transaction.Date.Value,
+                    Amount = transaction.Amount,
+                    Security = transaction.Security,
+                    Shares = transaction.Shares,
+                };
+
+                switch (transaction.Transaction.type)
+                {
+                    case PTransaction.Type.Purchase:
+                        action.Type = PortfolioTransactionActionType.Buy;
+                        break;
+
+                    case PTransaction.Type.Sale:
+                        action.Type = PortfolioTransactionActionType.Sell;
+                        break;
+
+                    case PTransaction.Type.OutboundDelivery:
+                        action.Type = PortfolioTransactionActionType.Outbound;
+                        break;
+
+                    case PTransaction.Type.InboundDelivery:
+                        action.Type = PortfolioTransactionActionType.Inbound;
+                        break;
+
+                    case PTransaction.Type.Tax:
+                        action.Type = PortfolioTransactionActionType.Tax;
+                        break;
+
+                    case PTransaction.Type.Fee:
+                        action.Type = PortfolioTransactionActionType.Fee;
+                        break;
+
+                    case PTransaction.Type.TaxRefund:
+                        action.Type = PortfolioTransactionActionType.Tax;
+                        action.Amount *= -1;
+                        break;
+
+                    case PTransaction.Type.FeeRefund:
+                        action.Type = PortfolioTransactionActionType.Fee;
+                        action.Amount *= -1;
+                        break;
+
+                    case PTransaction.Type.Dividend:
+                        action.Type = PortfolioTransactionActionType.Dividend;
+                        break;
+
+                    case PTransaction.Type.Deposit:
+                    case PTransaction.Type.Removal:
+                    case PTransaction.Type.SecurityTransfer:
+                        continue;
+
+                    default:
+                        throw new NotImplementedException($"unknown transaction type {transaction.Transaction.type}");
+                }
+
+                AddAction(action);
+
+                var units = transaction.Transaction.Units
+                    .Select(x => new TransactionUnitWrapper(x));
+
+                foreach (var unit in units)
+                {
+                    var unitAction = new PortfolioTransactionAction
+                    {
+                        Transaction = transaction,
+                        TransactionUnit = unit,
+                        Date = transaction.Transaction.Date.Value,
+                        Amount = unit.Amount,
+                        Security = transaction.Security,
+                    };
+
+                    switch (unit.TransactionUnit.type)
+                    {
+                        case PTransactionUnit.Type.Fee:
+                        case PTransactionUnit.Type.GrossValue:
+                            unitAction.Type = PortfolioTransactionActionType.Fee;
+
+                            if (transaction.Transaction.type != PTransaction.Type.Sale
+                                && transaction.Transaction.type != PTransaction.Type.InboundDelivery
+                                && transaction.Transaction.type != PTransaction.Type.Dividend)
+                            {
+                                action.Amount -= unit.Amount;
+                            }
+
+                            break;
+
+                        case PTransactionUnit.Type.Tax:
+                            unitAction.Type = PortfolioTransactionActionType.Tax;
+
+                            if (transaction.Transaction.type == PTransaction.Type.Dividend)
+                            {
+                                unitAction.Type = PortfolioTransactionActionType.DividendTax;
+                            }
+                            else if (transaction.Transaction.type != PTransaction.Type.Sale
+                                  && transaction.Transaction.type != PTransaction.Type.InboundDelivery)
+                            {
+                                action.Amount -= unit.Amount;
+                            }
+
+                            break;
+
+                        default:
+                            throw new NotImplementedException($"unknown transaction unit type {unit.TransactionUnit.type}");
+                    }
+
+                    AddAction(unitAction);
+                }
+            }
+
+            return result;
+        }
+
         private void UpdatePortfolioValue(
             PPortfolio portfolio,
             TransactionWrapper wrapper,
