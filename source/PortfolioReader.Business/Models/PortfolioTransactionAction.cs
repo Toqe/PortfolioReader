@@ -21,6 +21,8 @@ namespace Toqe.PortfolioReader.Business.Models
 
         public PSecurity Security { get; set; }
 
+        public PortfolioTransactionAction ConnectedAction { get; set; }
+
         public PortfolioTransactionAction Clone()
         {
             return new PortfolioTransactionAction

@@ -276,113 +276,151 @@ namespace Toqe.PortfolioReader.Business
                         securityValues.Add(securityValue);
                     }
 
-                    if (portfolioTransactionStatus?.ActionsPerSecurity.TryGetValue(assignment.investmentVehicle, out var x) == true)
+                    if (portfolioTransactionStatus?.ActionsPerSecurity.TryGetValue(assignment.investmentVehicle, out var tuple) == true)
                     {
-                        if (x.actions.Any())
+                        var actions = tuple.actions;
+
+                        if (actions.Any())
                         {
                             if (securityValue == null)
                             {
-                                securityValue = new SecurityValueModel { Security = x.security };
+                                securityValue = new SecurityValueModel { Security = tuple.security };
                                 securityValues.Add(securityValue);
                             }
 
                             securityValue.Dividends += Math.Round(
-                                x.actions
+                                tuple.actions
                                     .Where(x => x.Type is PortfolioTransactionActionType.Dividend)
                                     .Sum(x => x.Amount),
                                 2,
                                 MidpointRounding.AwayFromZero);
-                        }
 
-                        var portfolios = x.actions
-                            .Select(x => x.Portfolio)
-                            .Where(x => x != null)
-                            .Distinct()
-                            .ToList();
+                            var buyOrInboundPerPortfolio = new Dictionary<string, List<(DateTime date, double shares, double amount)>>();
+                            double currentPurchaseValue = 0;
+                            double currentRealisedGains = 0;
 
-                        foreach (var portfolio in portfolios)
-                        {
-                            var actions = x.actions.Where(x => x.Portfolio == portfolio);
-
-                            if (actions.Any())
+                            void AddBuyOrInbound(PPortfolio portfolio, DateTime date, double shares, double amount)
                             {
-                                var fifo = new List<(double shares, double amount)>();
-                                double currentPurchaseValue = 0;
-                                double currentRealisedGains = 0;
+                                var key = portfolio.Uuid;
 
-                                var fifoActions = actions
-                                    .Where(x => x.Type
-                                        is PortfolioTransactionActionType.Inbound
-                                        or PortfolioTransactionActionType.Outbound
-                                        or PortfolioTransactionActionType.Buy
-                                        or PortfolioTransactionActionType.Sell)
-                                    .OrderBy(x => x.Date)
-                                    .ToList();
-
-                                foreach (var action in fifoActions)
+                                if (!buyOrInboundPerPortfolio.ContainsKey(key))
                                 {
-                                    switch (action.Type)
+                                    buyOrInboundPerPortfolio.Add(key, new List<(DateTime date, double shares, double amount)>());
+                                }
+
+                                buyOrInboundPerPortfolio[key].Add((date, shares, amount));
+                                buyOrInboundPerPortfolio[key].Sort();
+                            }
+
+                            void AddBuyOrInboundAction(PortfolioTransactionAction action)
+                            {
+                                AddBuyOrInbound(action.Portfolio, action.Transaction.Transaction.Date.Value, action.Shares, action.Amount);
+                            }
+
+                            List<(DateTime date, double shares, double amount)> PopBuyOrInbound(PPortfolio portfolio, double shares)
+                            {
+                                var result = new List<(DateTime date, double shares, double amount)>();
+                                var key = portfolio.Uuid;
+
+                                while (shares > 0)
+                                {
+                                    var entry = buyOrInboundPerPortfolio[key].First();
+
+                                    if (entry.shares <= shares)
                                     {
-                                        case PortfolioTransactionActionType.Buy:
-                                        case PortfolioTransactionActionType.Inbound:
-                                            fifo.Add((action.Shares, action.Amount));
-                                            currentPurchaseValue += action.Amount;
-                                            break;
-
-                                        case PortfolioTransactionActionType.Sell:
-                                        case PortfolioTransactionActionType.Outbound:
-                                            var todoShares = action.Shares;
-
-                                            while (todoShares > 0)
-                                            {
-                                                var fifoAction = fifo.First();
-
-                                                if (fifoAction.shares > todoShares)
-                                                {
-                                                    var inAmount = fifoAction.amount * todoShares / fifoAction.shares;
-                                                    var outAmount = action.Amount * todoShares / action.Shares;
-                                                    fifoAction.amount -= inAmount;
-                                                    fifoAction.shares -= todoShares;
-                                                    fifoAction.shares = Math.Round(fifoAction.shares, 5, MidpointRounding.AwayFromZero);
-                                                    fifo[0] = fifoAction;
-                                                    currentPurchaseValue -= inAmount;
-                                                    todoShares = 0;
-
-                                                    if (action.Type == PortfolioTransactionActionType.Sell)
-                                                    {
-                                                        currentRealisedGains += outAmount - inAmount;
-                                                    }
-                                                }
-                                                else
-                                                {
-                                                    var inAmount = fifoAction.amount;
-                                                    var outAmount = action.Amount * fifoAction.shares / action.Shares;
-                                                    fifo.RemoveAt(0);
-                                                    currentPurchaseValue -= inAmount;
-                                                    todoShares -= fifoAction.shares;
-                                                    todoShares = Math.Round(todoShares, 5, MidpointRounding.AwayFromZero);
-
-                                                    if (action.Type == PortfolioTransactionActionType.Sell)
-                                                    {
-                                                        currentRealisedGains += outAmount - inAmount;
-                                                    }
-                                                }
-                                            }
-
-                                            break;
+                                        buyOrInboundPerPortfolio[key].RemoveAt(0);
+                                        result.Add(entry);
+                                        shares = Math.Round(shares - entry.shares, 5, MidpointRounding.AwayFromZero);
+                                    }
+                                    else
+                                    {
+                                        var newShares = Math.Round(entry.shares - shares, 5, MidpointRounding.AwayFromZero);
+                                        var newAmount = entry.amount * newShares / entry.shares;
+                                        var outShares = shares;
+                                        var outAmount = entry.amount * outShares / entry.shares;
+                                        entry.amount = newAmount;
+                                        entry.shares = newShares;
+                                        buyOrInboundPerPortfolio[key][0] = entry;
+                                        shares = 0;
+                                        result.Add((entry.date, outShares, outAmount));
                                     }
                                 }
 
-                                securityValue.PurchaseValue += Math.Round(
-                                    currentPurchaseValue,
-                                    2,
-                                    MidpointRounding.AwayFromZero);
-
-                                securityValue.RealisedGains += Math.Round(
-                                    currentRealisedGains,
-                                    2,
-                                    MidpointRounding.AwayFromZero);
+                                return result;
                             }
+
+                            var relevantActions = actions
+                                .Where(x => x.Type
+                                    is PortfolioTransactionActionType.Inbound
+                                    or PortfolioTransactionActionType.Outbound
+                                    or PortfolioTransactionActionType.Buy
+                                    or PortfolioTransactionActionType.Sell)
+                                .OrderBy(x => x.Date)
+                                .ToList();
+
+                            foreach (var action in relevantActions)
+                            {
+                                switch (action.Type)
+                                {
+                                    case PortfolioTransactionActionType.Buy:
+                                        AddBuyOrInboundAction(action);
+                                        currentPurchaseValue += action.Amount;
+                                        break;
+
+                                    case PortfolioTransactionActionType.Inbound:
+                                        if (action.ConnectedAction != null)
+                                        {
+                                            var entriesFromOtherPortfolio = PopBuyOrInbound(action.ConnectedAction.Portfolio, action.Shares);
+
+                                            foreach (var entry in entriesFromOtherPortfolio)
+                                            {
+                                                AddBuyOrInbound(action.Portfolio, entry.date, entry.shares, entry.amount);
+                                            }
+                                        }
+                                        else
+                                        {
+                                            AddBuyOrInboundAction(action);
+                                            currentPurchaseValue += action.Amount;
+                                        }
+
+                                        break;
+
+                                    case PortfolioTransactionActionType.Sell:
+                                    case PortfolioTransactionActionType.Outbound:
+                                        if (action.Type == PortfolioTransactionActionType.Outbound &&
+                                            action.ConnectedAction != null)
+                                        {
+                                            // ignore, we will handle this with the inbound on the other portfolio
+                                            continue;
+                                        }
+
+                                        var entries = PopBuyOrInbound(action.Portfolio, action.Shares);
+
+                                        foreach (var entry in entries)
+                                        {
+                                            var inAmount = entry.amount;
+                                            var outAmount = action.Amount * entry.shares / action.Shares;
+                                            currentPurchaseValue -= inAmount;
+
+                                            if (action.Type == PortfolioTransactionActionType.Sell)
+                                            {
+                                                currentRealisedGains += outAmount - inAmount;
+                                            }
+                                        }
+
+                                        break;
+                                }
+                            }
+
+                            securityValue.PurchaseValue += Math.Round(
+                                currentPurchaseValue,
+                                2,
+                                MidpointRounding.AwayFromZero);
+
+                            securityValue.RealisedGains += Math.Round(
+                                currentRealisedGains,
+                                2,
+                                MidpointRounding.AwayFromZero);
                         }
 
                         dividends += securityValue.Dividends;
@@ -531,9 +569,12 @@ namespace Toqe.PortfolioReader.Business
                     case PTransaction.Type.SecurityTransfer:
                         action.Type = PortfolioTransactionActionType.Outbound;
                         AddAction(action);
-                        action = action.Clone();
-                        action.Type = PortfolioTransactionActionType.Inbound;
-                        action.Portfolio = transaction.OtherPortfolio;
+                        var otherAction = action.Clone();
+                        otherAction.ConnectedAction = action;
+                        action.ConnectedAction = otherAction;
+                        otherAction.Type = PortfolioTransactionActionType.Inbound;
+                        otherAction.Portfolio = transaction.OtherPortfolio;
+                        action = otherAction;
                         break;
 
                     case PTransaction.Type.Deposit:
