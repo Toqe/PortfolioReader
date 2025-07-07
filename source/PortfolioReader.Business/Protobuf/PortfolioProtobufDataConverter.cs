@@ -1,6 +1,4 @@
 ﻿using System;
-using System.Globalization;
-using System.Linq;
 using System.Numerics;
 
 namespace Toqe.PortfolioReader.Business.Protobuf

@@ -12,6 +12,12 @@ namespace Toqe.PortfolioReader.Business.Models
 
         public double? Price { get; set; }
 
+        public double Dividends { get; set; }
+
+        public double PurchaseValue { get; set; }
+
+        public double RealisedGains { get; set; }
+
         public SecurityValueModel Clone()
         {
             return new SecurityValueModel
@@ -20,6 +26,9 @@ namespace Toqe.PortfolioReader.Business.Models
                 Price = this.Price,
                 Security = this.Security,
                 Shares = this.Shares,
+                Dividends = this.Dividends,
+                PurchaseValue = this.PurchaseValue,
+                RealisedGains = this.RealisedGains,
             };
         }
     }

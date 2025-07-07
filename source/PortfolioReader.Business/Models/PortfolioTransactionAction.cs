@@ -17,6 +17,23 @@ namespace Toqe.PortfolioReader.Business.Models
 
         public double Shares { get; set; }
 
+        public PPortfolio Portfolio { get; set; }
+
         public PSecurity Security { get; set; }
+
+        public PortfolioTransactionAction Clone()
+        {
+            return new PortfolioTransactionAction
+            {
+                Type = this.Type,
+                Transaction = this.Transaction,
+                TransactionUnit = this.TransactionUnit,
+                Amount = this.Amount,
+                Date = this.Date,
+                Shares = this.Shares,
+                Portfolio = this.Portfolio,
+                Security = this.Security,
+            };
+        }
     }
 }

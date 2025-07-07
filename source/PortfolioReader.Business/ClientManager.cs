@@ -9,7 +9,7 @@ namespace Toqe.PortfolioReader.Business
 {
     public class ClientManager
     {
-        private static PHistoricalPriceDateComparer comparer = new PHistoricalPriceDateComparer();
+        private static readonly PHistoricalPriceDateComparer comparer = new PHistoricalPriceDateComparer();
 
         public List<PortfolioValuesModel> GetCurrentPortfoliosValues(
             PClient client,
@@ -244,21 +244,26 @@ namespace Toqe.PortfolioReader.Business
         public ClassificationRebalancingModel GetClassificationRebalancing(
             PClient client,
             PTaxonomy taxonomy,
-            Func<(string currency, DateTime date), decimal> exchangeRateProvider)
+            Func<(string currency, DateTime date), decimal> exchangeRateProvider,
+            PortfolioTransactionStatus portfolioTransactionStatus = null)
         {
             var root = taxonomy.Classifications.SingleOrDefault(x => string.IsNullOrWhiteSpace(x.parentId));
 
             var currentSecuritiesValues = this.GetCurrentSecuritiesValues(client, exchangeRateProvider);
-            var classificationValuesCache = new Dictionary<string, (double, List<SecurityValueModel>)>();
+            var classificationValuesCache = new Dictionary<string, (double marketValue, double dividends, double purchaseValue, double realisedGains, List<SecurityValueModel>)>();
 
-            (double, List<SecurityValueModel>) GetClassificationMarketValueAndSecurities(PTaxonomy.Classification c)
+            (double marketValue, double dividends, double purchaseValue, double realisedGains, List<SecurityValueModel> securities) GetClassificationMarketValueAndSecurities(
+                PTaxonomy.Classification c)
             {
-                if (classificationValuesCache.TryGetValue(c.Id, out var marketValue))
+                if (classificationValuesCache.TryGetValue(c.Id, out var cacheEntry))
                 {
-                    return marketValue;
+                    return cacheEntry;
                 }
 
-                double sumValue = 0;
+                double marketValue = 0;
+                double dividends = 0;
+                double purchaseValue = 0;
+                double realisedGains = 0;
                 var securityValues = new List<SecurityValueModel>();
 
                 foreach (var assignment in c.Assignments)
@@ -267,8 +272,122 @@ namespace Toqe.PortfolioReader.Business
 
                     if (securityValue != null)
                     {
-                        sumValue += securityValue?.MarketValue ?? 0;
+                        marketValue += securityValue?.MarketValue ?? 0;
                         securityValues.Add(securityValue);
+                    }
+
+                    if (portfolioTransactionStatus?.ActionsPerSecurity.TryGetValue(assignment.investmentVehicle, out var x) == true)
+                    {
+                        if (x.actions.Any())
+                        {
+                            if (securityValue == null)
+                            {
+                                securityValue = new SecurityValueModel { Security = x.security };
+                                securityValues.Add(securityValue);
+                            }
+
+                            securityValue.Dividends += Math.Round(
+                                x.actions
+                                    .Where(x => x.Type is PortfolioTransactionActionType.Dividend)
+                                    .Sum(x => x.Amount),
+                                2,
+                                MidpointRounding.AwayFromZero);
+                        }
+
+                        var portfolios = x.actions
+                            .Select(x => x.Portfolio)
+                            .Where(x => x != null)
+                            .Distinct()
+                            .ToList();
+
+                        foreach (var portfolio in portfolios)
+                        {
+                            var actions = x.actions.Where(x => x.Portfolio == portfolio);
+
+                            if (actions.Any())
+                            {
+                                var fifo = new List<(double shares, double amount)>();
+                                double currentPurchaseValue = 0;
+                                double currentRealisedGains = 0;
+
+                                var fifoActions = actions
+                                    .Where(x => x.Type
+                                        is PortfolioTransactionActionType.Inbound
+                                        or PortfolioTransactionActionType.Outbound
+                                        or PortfolioTransactionActionType.Buy
+                                        or PortfolioTransactionActionType.Sell)
+                                    .OrderBy(x => x.Date)
+                                    .ToList();
+
+                                foreach (var action in fifoActions)
+                                {
+                                    switch (action.Type)
+                                    {
+                                        case PortfolioTransactionActionType.Buy:
+                                        case PortfolioTransactionActionType.Inbound:
+                                            fifo.Add((action.Shares, action.Amount));
+                                            currentPurchaseValue += action.Amount;
+                                            break;
+
+                                        case PortfolioTransactionActionType.Sell:
+                                        case PortfolioTransactionActionType.Outbound:
+                                            var todoShares = action.Shares;
+
+                                            while (todoShares > 0)
+                                            {
+                                                var fifoAction = fifo.First();
+
+                                                if (fifoAction.shares > todoShares)
+                                                {
+                                                    var inAmount = fifoAction.amount * todoShares / fifoAction.shares;
+                                                    var outAmount = action.Amount * todoShares / action.Shares;
+                                                    fifoAction.amount -= inAmount;
+                                                    fifoAction.shares -= todoShares;
+                                                    fifoAction.shares = Math.Round(fifoAction.shares, 5, MidpointRounding.AwayFromZero);
+                                                    fifo[0] = fifoAction;
+                                                    currentPurchaseValue -= inAmount;
+                                                    todoShares = 0;
+
+                                                    if (action.Type == PortfolioTransactionActionType.Sell)
+                                                    {
+                                                        currentRealisedGains += outAmount - inAmount;
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    var inAmount = fifoAction.amount;
+                                                    var outAmount = action.Amount * fifoAction.shares / action.Shares;
+                                                    fifo.RemoveAt(0);
+                                                    currentPurchaseValue -= inAmount;
+                                                    todoShares -= fifoAction.shares;
+                                                    todoShares = Math.Round(todoShares, 5, MidpointRounding.AwayFromZero);
+
+                                                    if (action.Type == PortfolioTransactionActionType.Sell)
+                                                    {
+                                                        currentRealisedGains += outAmount - inAmount;
+                                                    }
+                                                }
+                                            }
+
+                                            break;
+                                    }
+                                }
+
+                                securityValue.PurchaseValue += Math.Round(
+                                    currentPurchaseValue,
+                                    2,
+                                    MidpointRounding.AwayFromZero);
+
+                                securityValue.RealisedGains += Math.Round(
+                                    currentRealisedGains,
+                                    2,
+                                    MidpointRounding.AwayFromZero);
+                            }
+                        }
+
+                        dividends += securityValue.Dividends;
+                        purchaseValue += securityValue.PurchaseValue;
+                        realisedGains += securityValue.RealisedGains;
                     }
                 }
 
@@ -276,12 +395,21 @@ namespace Toqe.PortfolioReader.Business
 
                 foreach (var child in children)
                 {
-                    sumValue += GetClassificationMarketValueAndSecurities(child).Item1;
+                    var childEntry = GetClassificationMarketValueAndSecurities(child);
+                    marketValue += childEntry.marketValue;
+                    dividends += childEntry.dividends;
+                    purchaseValue += childEntry.purchaseValue;
+                    realisedGains += childEntry.realisedGains;
                 }
 
-                sumValue = Math.Round(sumValue, 2, MidpointRounding.AwayFromZero);
-                classificationValuesCache.Add(c.Id, (sumValue, securityValues));
-                return (sumValue, securityValues);
+                marketValue = Math.Round(marketValue, 2, MidpointRounding.AwayFromZero);
+                dividends = Math.Round(dividends, 2, MidpointRounding.AwayFromZero);
+                purchaseValue = Math.Round(purchaseValue, 2, MidpointRounding.AwayFromZero);
+                realisedGains = Math.Round(realisedGains, 2, MidpointRounding.AwayFromZero);
+
+                var result = (marketValue, dividends, purchaseValue, realisedGains, securityValues);
+                classificationValuesCache.Add(c.Id, result);
+                return result;
             }
 
             ClassificationRebalancingModel Build(
@@ -292,8 +420,11 @@ namespace Toqe.PortfolioReader.Business
                 var marketValueAndSecurities = GetClassificationMarketValueAndSecurities(classification);
                 var result = new ClassificationRebalancingModel();
                 result.Classification = classification;
-                result.MarketValue = marketValueAndSecurities.Item1;
-                result.SecurityValues = marketValueAndSecurities.Item2;
+                result.MarketValue = marketValueAndSecurities.marketValue;
+                result.Dividends = marketValueAndSecurities.dividends;
+                result.PurchaseValue = marketValueAndSecurities.purchaseValue;
+                result.RealisedGains = marketValueAndSecurities.realisedGains;
+                result.SecurityValues = marketValueAndSecurities.securities;
                 result.SupposedWeightPercentage = classification.Weight / 100d;
                 result.SupposedTotalWeightPercentage = parent == null ? 100 : parent.SupposedTotalWeightPercentage * result.SupposedWeightPercentage / 100;
                 result.SupposedValue = Math.Round(result.SupposedTotalWeightPercentage * totalValue / 100, 2, MidpointRounding.AwayFromZero);
@@ -354,6 +485,7 @@ namespace Toqe.PortfolioReader.Business
                     Amount = transaction.Amount,
                     Security = transaction.Security,
                     Shares = transaction.Shares,
+                    Portfolio = transaction.Portfolio,
                 };
 
                 switch (transaction.Transaction.type)
@@ -396,9 +528,16 @@ namespace Toqe.PortfolioReader.Business
                         action.Type = PortfolioTransactionActionType.Dividend;
                         break;
 
+                    case PTransaction.Type.SecurityTransfer:
+                        action.Type = PortfolioTransactionActionType.Outbound;
+                        AddAction(action);
+                        action = action.Clone();
+                        action.Type = PortfolioTransactionActionType.Inbound;
+                        action.Portfolio = transaction.OtherPortfolio;
+                        break;
+
                     case PTransaction.Type.Deposit:
                     case PTransaction.Type.Removal:
-                    case PTransaction.Type.SecurityTransfer:
                         continue;
 
                     default:
@@ -424,12 +563,19 @@ namespace Toqe.PortfolioReader.Business
                     switch (unit.TransactionUnit.type)
                     {
                         case PTransactionUnit.Type.Fee:
-                        case PTransactionUnit.Type.GrossValue:
                             unitAction.Type = PortfolioTransactionActionType.Fee;
 
-                            if (transaction.Transaction.type != PTransaction.Type.Sale
-                                && transaction.Transaction.type != PTransaction.Type.InboundDelivery
-                                && transaction.Transaction.type != PTransaction.Type.Dividend)
+                            if (transaction.Transaction.type == PTransaction.Type.Sale)
+                            {
+                                unitAction.Type = PortfolioTransactionActionType.SellFeeOrTax;
+                                action.Amount += unit.Amount;
+                            }
+                            else if (transaction.Transaction.type == PTransaction.Type.Dividend)
+                            {
+                                unitAction.Type = PortfolioTransactionActionType.DividendFeeOrTax;
+                                action.Amount += unit.Amount;
+                            }
+                            else if (transaction.Transaction.type == PTransaction.Type.Purchase)
                             {
                                 action.Amount -= unit.Amount;
                             }
@@ -439,16 +585,25 @@ namespace Toqe.PortfolioReader.Business
                         case PTransactionUnit.Type.Tax:
                             unitAction.Type = PortfolioTransactionActionType.Tax;
 
-                            if (transaction.Transaction.type == PTransaction.Type.Dividend)
+                            if (transaction.Transaction.type == PTransaction.Type.Sale)
                             {
-                                unitAction.Type = PortfolioTransactionActionType.DividendTax;
+                                unitAction.Type = PortfolioTransactionActionType.SellFeeOrTax;
+                                action.Amount += unit.Amount;
                             }
-                            else if (transaction.Transaction.type != PTransaction.Type.Sale
-                                  && transaction.Transaction.type != PTransaction.Type.InboundDelivery)
+                            else if (transaction.Transaction.type == PTransaction.Type.Dividend)
+                            {
+                                unitAction.Type = PortfolioTransactionActionType.DividendFeeOrTax;
+                                action.Amount += unit.Amount;
+                            }
+                            else if (transaction.Transaction.type == PTransaction.Type.Purchase)
                             {
                                 action.Amount -= unit.Amount;
                             }
 
+                            break;
+
+                        case PTransactionUnit.Type.GrossValue:
+                            // do nothing
                             break;
 
                         default:

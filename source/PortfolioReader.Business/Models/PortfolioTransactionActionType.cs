@@ -8,8 +8,9 @@
         Tax,
         Fee,
         Dividend,
-        DividendTax,
+        DividendFeeOrTax,
         Inbound,
         Outbound,
+        SellFeeOrTax,
     }
 }

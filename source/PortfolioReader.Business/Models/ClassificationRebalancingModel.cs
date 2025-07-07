@@ -21,6 +21,12 @@ namespace Toqe.PortfolioReader.Business.Models
 
         public double SupposedTotalWeightPercentage { get; set; }
 
+        public double Dividends { get; set; }
+
+        public double PurchaseValue { get; set; }
+
+        public double RealisedGains { get; set; }
+
         public ClassificationRebalancingModel Parent { get; set; }
 
         public List<ClassificationRebalancingModel> Children { get; set; } = new List<ClassificationRebalancingModel>();
