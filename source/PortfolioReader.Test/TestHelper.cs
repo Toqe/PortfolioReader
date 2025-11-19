@@ -1,22 +1,21 @@
-﻿namespace Toqe.PortfolioReader.Test
+﻿namespace Toqe.PortfolioReader.Test;
+
+public class TestHelper
 {
-    public class TestHelper
+    public DirectoryInfo GetTestDataBasePath()
     {
-        public DirectoryInfo GetTestDataBasePath()
+        var basePath = new DirectoryInfo(".");
+
+        while (basePath.Name != "source")
         {
-            var basePath = new DirectoryInfo(".");
+            basePath = basePath.Parent;
 
-            while (basePath.Name != "source")
+            if (basePath == null)
             {
-                basePath = basePath.Parent;
-
-                if (basePath == null)
-                {
-                    throw new InvalidOperationException("Base path not found");
-                }
+                throw new InvalidOperationException("Base path not found");
             }
-
-            return new DirectoryInfo(Path.Combine(basePath.FullName, "PortfolioReader.Test", "TestData"));
         }
+
+        return new DirectoryInfo(Path.Combine(basePath.FullName, "PortfolioReader.Test", "TestData"));
     }
 }

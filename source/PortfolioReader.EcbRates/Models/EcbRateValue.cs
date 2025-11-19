@@ -1,13 +1,12 @@
 ﻿using System;
 
-namespace Toqe.PortfolioReader.EcbRates.Models
+namespace Toqe.PortfolioReader.EcbRates.Models;
+
+public class EcbRateValue
 {
-    public class EcbRateValue
-    {
-        public string Currency { get; set; }
+    public string Currency { get; set; }
 
-        public decimal Rate { get; set; }
+    public decimal Rate { get; set; }
 
-        public DateTime Date { get; set; }
-    }
+    public DateTime Date { get; set; }
 }
