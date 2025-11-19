@@ -579,6 +579,7 @@ public class ClientManager
 
                 case PTransaction.Type.Deposit:
                 case PTransaction.Type.Removal:
+                case PTransaction.Type.Interest:
                     continue;
 
                 default:
