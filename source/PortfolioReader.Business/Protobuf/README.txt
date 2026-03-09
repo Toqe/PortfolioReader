@@ -4,5 +4,6 @@ Portfolio Performance is licensed under the Eclipse Public License, see https://
 How to generate C# classes from the Protobuf definition of Portfolio Performance?
 - Download client.proto from the Portfolio Performance GitHub repository to this directory and rename it to pp-client.proto
 - Add the following line under the "option java_..." lines in pp-client.proto: option csharp_namespace = "Toqe.PortfolioReader.Business.Protobuf";
-- Run: dotnet tool install --global protobuf-net.Protogen --version 3.2.42
+- Comment out the line "repeated google.protobuf.Any extensions = 99;", otherwise we can't use serialization, only deserialization.
+- Run: dotnet tool install --global protobuf-net.Protogen --version 3.2.52
 - Run: protogen --proto_path=. --csharp_out=. pp-client.proto

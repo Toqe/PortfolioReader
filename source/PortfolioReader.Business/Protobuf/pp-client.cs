@@ -28,6 +28,21 @@ namespace Toqe.PortfolioReader.Business.Protobuf
     }
 
     [global::ProtoBuf.ProtoContract()]
+    public partial class PLocalDateTime : global::ProtoBuf.IExtensible
+    {
+        private global::ProtoBuf.IExtension __pbn__extensionData;
+        global::ProtoBuf.IExtension global::ProtoBuf.IExtensible.GetExtensionObject(bool createIfMissing)
+            => global::ProtoBuf.Extensible.GetExtensionObject(ref __pbn__extensionData, createIfMissing);
+
+        [global::ProtoBuf.ProtoMember(1, Name = @"epoch_day")]
+        public long EpochDay { get; set; }
+
+        [global::ProtoBuf.ProtoMember(2, Name = @"second_of_day")]
+        public int SecondOfDay { get; set; }
+
+    }
+
+    [global::ProtoBuf.ProtoContract()]
     public partial class PAnyValue : global::ProtoBuf.IExtensible
     {
         private global::ProtoBuf.IExtension __pbn__extensionData;
@@ -671,6 +686,9 @@ namespace Toqe.PortfolioReader.Business.Protobuf
         public bool ShouldSerializeSource() => __pbn__Source != null;
         public void ResetSource() => __pbn__Source = null;
         private string __pbn__Source;
+
+        [global::ProtoBuf.ProtoMember(18)]
+        public PLocalDateTime exDate { get; set; }
 
         [global::ProtoBuf.ProtoContract()]
         public enum Type
