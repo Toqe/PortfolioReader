@@ -75,7 +75,7 @@ public class ClientManager
         {
             if (!securityPricesCache.ContainsKey(security))
             {
-                securityPricesCache.Add(security, security.Prices.OrderBy(x => x.Date).ToList());
+                securityPricesCache.Add(security, SecurityPriceHelper.GetOrderedPricesIncludingLatest(security));
             }
 
             return securityPricesCache[security];
@@ -196,7 +196,7 @@ public class ClientManager
         {
             if (!securityPricesCache.ContainsKey(security))
             {
-                securityPricesCache.Add(security, security.Prices.OrderBy(x => x.Date).ToList());
+                securityPricesCache.Add(security, SecurityPriceHelper.GetOrderedPricesIncludingLatest(security));
             }
 
             return securityPricesCache[security];
@@ -725,7 +725,7 @@ public class ClientManager
 
             if (orderedPrices == null)
             {
-                orderedPrices = securityValue.Security.Prices.OrderBy(x => x.Date).ToList();
+                orderedPrices = SecurityPriceHelper.GetOrderedPricesIncludingLatest(securityValue.Security);
             }
 
             if (orderedPrices != null && orderedPrices.Any())
