@@ -1,4 +1,4 @@
-﻿The pp-client.cs is generated from a file named client.proto located in the Portfolio Performance GitHub repository https://github.com/portfolio-performance/portfolio/blob/299ecbceb671e0fd55e065c1684af5fa5019451e/name.abuchen.portfolio/src/name/abuchen/portfolio/model/client.proto
+﻿The pp-client.cs is generated from a file named client.proto located in the Portfolio Performance GitHub repository https://github.com/portfolio-performance/portfolio/blob/master/name.abuchen.portfolio/src/name/abuchen/portfolio/model/client.proto
 Portfolio Performance is licensed under the Eclipse Public License, see https://github.com/portfolio-performance/portfolio/blob/master/LICENSE
 
 How to generate C# classes from the Protobuf definition of Portfolio Performance?
